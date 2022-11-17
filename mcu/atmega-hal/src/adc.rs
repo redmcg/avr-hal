@@ -29,11 +29,15 @@ impl Default for ReferenceVoltage {
 pub struct AdcSettings {
     pub clock_divider: ClockDivider,
     pub ref_voltage: ReferenceVoltage,
+    pub auto_trigger: bool,
 }
 
 fn apply_settings(peripheral: &crate::pac::ADC, settings: AdcSettings) {
     peripheral.adcsra.write(|w| {
         w.aden().set_bit();
+        if settings.auto_trigger {
+            w.adate().set_bit();
+        }
         match settings.clock_divider {
             ClockDivider::Factor2 => w.adps().prescaler_2(),
             ClockDivider::Factor4 => w.adps().prescaler_4(),

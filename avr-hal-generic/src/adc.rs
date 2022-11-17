@@ -46,6 +46,11 @@ pub trait AdcOps<H> {
     /// **Warning**: This is a low-level method and should not be called directly from user code.
     fn raw_read_adc(&self) -> u16;
 
+    /// Check whether the ADC is currently set to auto trigger.
+    ///
+    /// **Warning**: This is a low-level method and should not be called directly from user code.
+    fn raw_is_auto_trigger(&self) -> bool;
+
     /// Check whether the ADC is currently converting a signal.
     ///
     /// **Warning**: This is a low-level method and should not be called directly from user code.
@@ -180,7 +185,13 @@ where
     ) -> nb::Result<u16, void::Void> {
         match (&self.reading_channel, self.p.raw_is_converting()) {
             // Measurement on current pin is ongoing
-            (Some(channel), true) if *channel == pin.channel() => Err(nb::Error::WouldBlock),
+            (Some(channel), true) if *channel == pin.channel() => {
+                if self.p.raw_is_auto_trigger() {
+                    Ok(self.p.raw_read_adc().into())
+                } else {
+                    Err(nb::Error::WouldBlock)
+                }
+            },
             // Measurement on current pin completed
             (Some(channel), false) if *channel == pin.channel() => {
                 self.reading_channel = None;
@@ -239,6 +250,11 @@ macro_rules! impl_adc {
             #[inline]
             fn raw_read_adc(&self) -> u16 {
                 self.adc.read().bits()
+            }
+
+            #[inline]
+            fn raw_is_auto_trigger(&self) -> bool {
+                self.adcsra.read().adate().bit_is_set()
             }
 
             #[inline]
