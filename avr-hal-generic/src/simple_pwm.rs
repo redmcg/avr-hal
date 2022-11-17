@@ -94,9 +94,9 @@ macro_rules! impl_simple_pwm {
             pins: {$(
                 $PXi:ident: {
                     ocr: $ocr:ident,
-                    $into_pwm:ident: |$pin_timer:ident| if enable
+                    into_pwm: |$pin_timer:ident| if enable
                         $pin_enable_block:block else $pin_disable_block:block,
-                    $get_max_duty:ident: |$duty_timer:ident| $get_max_duty_block:block, 
+                    get_max_duty: |$duty_timer:ident| $get_max_duty_block:block,
                 },
             )+},
         }
