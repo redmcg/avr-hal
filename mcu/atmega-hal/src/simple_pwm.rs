@@ -3,6 +3,42 @@ pub use avr_hal_generic::simple_pwm::{PwmPinOps, Prescaler};
 use crate::port::*;
 
 #[cfg(any(
+    feature = "atmega328p",
+))]
+pub enum PwmMode8Bit {
+    FastPwmMode3,
+}
+
+#[cfg(any(
+    feature = "atmega328p",
+))]
+pub enum PwmMode16Bit {
+    FastPWMMode5,
+    FastPWMMode6,
+    FastPWMMode7,
+}
+
+impl PwmMode16Bit {
+    fn new(tccr1a_wgm1: u8, tccr1b_wgm1: u8) -> Option<Self> {
+        match (tccr1a_wgm1, tccr1b_wgm1) {
+            (1, 1) => Some(PwmMode16Bit::FastPWMMode5),
+            (2, 1) => Some(PwmMode16Bit::FastPWMMode6),
+            (3, 1) => Some(PwmMode16Bit::FastPWMMode7),
+            _ => None,
+        }
+    }
+
+    fn get_max_duty(&self) -> u16 {
+        match self {
+            PwmMode16Bit::FastPWMMode5 => 0x00FF,
+            PwmMode16Bit::FastPWMMode6 => 0x01FF,
+            PwmMode16Bit::FastPWMMode7 => 0x03FF,
+        }
+    }
+}
+
+
+#[cfg(any(
     feature = "atmega48p",
     feature = "atmega168",
     feature = "atmega328p",
@@ -23,7 +59,9 @@ avr_hal_generic::impl_simple_pwm! {
     /// ```
     pub struct Timer0Pwm {
         timer: crate::pac::TC0,
-        init: |tim, prescaler| {
+        pwm_mode: PwmMode8Bit,
+        duty: u8,
+        init: |tim, _pwm_mode, prescaler| {
             tim.tccr0a.modify(|_r, w| w.wgm0().pwm_fast());
             tim.tccr0b.modify(|_r, w| match prescaler {
                 Prescaler::Direct => w.cs0().direct(),
@@ -41,6 +79,7 @@ avr_hal_generic::impl_simple_pwm! {
                 } else {
                     tim.tccr0a.modify(|_r, w| w.com0a().disconnected());
                 },
+                get_max_duty: |_tim| { u8::MAX },
             },
 
             PD5: {
@@ -50,6 +89,7 @@ avr_hal_generic::impl_simple_pwm! {
                 } else {
                     tim.tccr0a.modify(|_r, w| w.com0b().disconnected());
                 },
+                get_max_duty: |_tim| { u8::MAX },
             },
         },
     }
@@ -76,8 +116,17 @@ avr_hal_generic::impl_simple_pwm! {
     /// ```
     pub struct Timer1Pwm {
         timer: crate::pac::TC1,
-        init: |tim, prescaler| {
-            tim.tccr1a.modify(|_r, w| w.wgm1().bits(0b01));
+        pwm_mode: PwmMode16Bit,
+        duty: u16,
+        init: |tim, pwm_mode, prescaler| {
+            tim.tccr1a.modify(|_r, w| {
+                match pwm_mode {
+                    PwmMode16Bit::FastPWMMode5 => w.wgm1().bits(0b01),
+                    PwmMode16Bit::FastPWMMode6 => w.wgm1().bits(0b10),
+                    PwmMode16Bit::FastPWMMode7 => w.wgm1().bits(0b11),
+                }
+            });
+
             tim.tccr1b.modify(|_r, w| {
                 w.wgm1().bits(0b01);
 
@@ -98,6 +147,11 @@ avr_hal_generic::impl_simple_pwm! {
                 } else {
                     tim.tccr1a.modify(|_r, w| w.com1a().disconnected());
                 },
+                get_max_duty: |tim| { 
+                    let tccr1a_wgm1 = tim.tccr1a.read().wgm1().bits();
+                    let tccr1b_wgm1 = tim.tccr1b.read().wgm1().bits();
+                    PwmMode16Bit::new(tccr1a_wgm1, tccr1b_wgm1).unwrap().get_max_duty() 
+                },
             },
 
             PB2: {
@@ -106,6 +160,11 @@ avr_hal_generic::impl_simple_pwm! {
                     tim.tccr1a.modify(|_r, w| w.com1b().match_clear());
                 } else {
                     tim.tccr1a.modify(|_r, w| w.com1b().disconnected());
+                },
+                get_max_duty: |tim| { 
+                    let tccr1a_wgm1 = tim.tccr1a.read().wgm1().bits();
+                    let tccr1b_wgm1 = tim.tccr1b.read().wgm1().bits();
+                    PwmMode16Bit::new(tccr1a_wgm1, tccr1b_wgm1).unwrap().get_max_duty() 
                 },
             },
         },
@@ -133,7 +192,9 @@ avr_hal_generic::impl_simple_pwm! {
     /// ```
     pub struct Timer2Pwm {
         timer: crate::pac::TC2,
-        init: |tim, prescaler| {
+        pwm_mode: PwmMode8Bit,
+        duty: u8,
+        init: |tim, _pwm_mode, prescaler| {
             tim.tccr2a.modify(|_r, w| w.wgm2().pwm_fast());
             tim.tccr2b.modify(|_r, w| match prescaler {
                     Prescaler::Direct => w.cs2().direct(),
@@ -151,6 +212,7 @@ avr_hal_generic::impl_simple_pwm! {
                 } else {
                     tim.tccr2a.modify(|_r, w| w.com2a().disconnected());
                 },
+                get_max_duty: |_tim| { u8::MAX },
             },
 
             PD3: {
@@ -160,6 +222,7 @@ avr_hal_generic::impl_simple_pwm! {
                 } else {
                     tim.tccr2a.modify(|_r, w| w.com2b().disconnected());
                 },
+                get_max_duty: |_tim| { u8::MAX },
             },
         },
     }

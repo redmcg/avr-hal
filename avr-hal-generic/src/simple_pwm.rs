@@ -44,7 +44,7 @@ pub trait PwmPinOps<TC> {
     fn get_duty(&self) -> Self::Duty;
     fn get_max_duty(&self) -> Self::Duty;
 
-    fn set_duty(&mut self, value: u8);
+    fn set_duty(&mut self, value: Self::Duty);
 }
 
 pub trait IntoPwmPin<TC, PIN> {
@@ -77,7 +77,7 @@ impl<TC, PIN: PwmPinOps<TC>> Pin<mode::PwmOutput<TC>, PIN> {
         self.pin.get_max_duty()
     }
 
-    pub fn set_duty(&mut self, duty: u8) {
+    pub fn set_duty(&mut self, duty: <PIN as PwmPinOps<TC>>::Duty) {
         self.pin.set_duty(duty);
     }
 }
@@ -88,12 +88,15 @@ macro_rules! impl_simple_pwm {
         $(#[$timer_pwm_attr:meta])*
         pub struct $TimerPwm:ident {
             timer: $TIMER:ty,
-            init: |$init_timer:ident, $prescaler:ident| $init_block:block,
+            pwm_mode: $PWM_MODE:ty,
+            duty: $DUTY:ty,
+            init: |$init_timer:ident, $pwm_mode:ident, $prescaler:ident| $init_block:block,
             pins: {$(
                 $PXi:ident: {
                     ocr: $ocr:ident,
                     $into_pwm:ident: |$pin_timer:ident| if enable
                         $pin_enable_block:block else $pin_disable_block:block,
+                    $get_max_duty:ident: |$duty_timer:ident| $get_max_duty_block:block, 
                 },
             )+},
         }
@@ -101,14 +104,16 @@ macro_rules! impl_simple_pwm {
         $(#[$timer_pwm_attr])*
         pub struct $TimerPwm {
             timer: $TIMER,
+            pwm_mode: $PWM_MODE,
         }
 
         impl $TimerPwm {
-            pub fn new(timer: $TIMER, prescaler: $crate::simple_pwm::Prescaler) -> $TimerPwm {
-                let mut t = $TimerPwm { timer };
+            pub fn new(timer: $TIMER, pwm_mode: $PWM_MODE, prescaler: $crate::simple_pwm::Prescaler) -> $TimerPwm {
+                let mut t = $TimerPwm { timer, pwm_mode };
 
                 {
                     let $init_timer = &mut t.timer;
+                    let $pwm_mode = &t.pwm_mode;
                     let $prescaler = prescaler;
                     $init_block
                 }
@@ -119,7 +124,7 @@ macro_rules! impl_simple_pwm {
 
         $(
             impl avr_hal_generic::simple_pwm::PwmPinOps<$TimerPwm> for $PXi {
-                type Duty = u8;
+                type Duty = $DUTY;
 
                 fn enable(&mut self) {
                     // SAFETY: This block will usually result in a read-modify-write sequence which
@@ -146,7 +151,8 @@ macro_rules! impl_simple_pwm {
                 }
 
                 fn get_max_duty(&self) -> Self::Duty {
-                    u8::MAX
+                    let $duty_timer = unsafe { (&*<$TIMER>::ptr()) };
+                    $get_max_duty_block
                 }
 
                 fn set_duty(&mut self, duty: Self::Duty) {
