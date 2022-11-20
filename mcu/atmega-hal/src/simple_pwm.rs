@@ -71,6 +71,12 @@ avr_hal_generic::impl_simple_pwm! {
                 Prescaler::Prescale1024 => w.cs0().prescale_1024(),
             });
         },
+        is_overflow: |tim| {
+            tim.tifr0.read().tov0().bit()
+        },
+        reset_overflow: |tim| {
+            tim.tifr0.write(|w|w.tov0().set_bit());
+        },
         pins: {
             PD6: {
                 ocr: ocr0a,
@@ -139,6 +145,12 @@ avr_hal_generic::impl_simple_pwm! {
                 }
             });
         },
+        is_overflow: |tim| {
+            tim.tifr1.read().tov1().bit()
+        },
+        reset_overflow: |tim| {
+            tim.tifr1.write(|w|w.tov1().set_bit());
+        },
         pins: {
             PB1: {
                 ocr: ocr1a,
@@ -203,6 +215,12 @@ avr_hal_generic::impl_simple_pwm! {
                     Prescaler::Prescale256 => w.cs2().prescale_256(),
                     Prescaler::Prescale1024 => w.cs2().prescale_1024(),
             });
+        },
+        is_overflow: |tim| {
+            tim.tifr2.read().tov2().bit()
+        },
+        reset_overflow: |tim| {
+            tim.tifr2.write(|w|w.tov2().set_bit());
         },
         pins: {
             PB3: {

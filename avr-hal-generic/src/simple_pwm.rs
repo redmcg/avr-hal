@@ -91,6 +91,8 @@ macro_rules! impl_simple_pwm {
             pwm_mode: $PWM_MODE:ty,
             duty: $DUTY:ty,
             init: |$init_timer:ident, $pwm_mode:ident, $prescaler:ident| $init_block:block,
+            is_overflow: |$is_overflow_timer:ident| $is_overflow_block:block,
+            reset_overflow: |$reset_overflow_timer:ident| $reset_overflow_block:block,
             pins: {$(
                 $PXi:ident: {
                     ocr: $ocr:ident,
@@ -119,6 +121,18 @@ macro_rules! impl_simple_pwm {
                 }
 
                 t
+            }
+
+            pub fn is_overflow(&self) -> bool {
+                let $is_overflow_timer = &self.timer;
+
+                $is_overflow_block
+            }
+
+            pub fn reset_overflow(&self) {
+                let $reset_overflow_timer = &self.timer;
+
+                $reset_overflow_block
             }
         }
 
